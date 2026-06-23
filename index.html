@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>インドカレーマップ</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', sans-serif;
+            background-color: #fdf6e2;
+            color: #4a2c11;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* --- ヘッダー（トップメニュー） --- */
+        header {
+            background-color: #e65c00;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 4px solid #cc4400;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            justify-content: center;
+        }
+
+        nav ul li {
+            flex: 1;
+            max-width: 200px;
+        }
+
+        nav ul li a {
+            display: block;
+            padding: 15px 0;
+            text-align: center;
+            color: #ffffff;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1rem;
+            transition: background 0.3s ease;
+            cursor: pointer;
+        }
+
+        nav ul li a:hover, nav ul li a.active {
+            background-color: #cc4400;
+            color: #ffeeaa;
+        }
+
+        /* --- メインコンテンツ領域 --- */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .page {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* --- ホーム画面（地図ページ） --- */
+        #home-page {
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            padding: 20px 10px;
+            color: #990000;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+            letter-spacing: 2px;
+        }
+
+        /* 地図のコンテナ：スマホの横幅いっぱいに広げる設定 */
+        .map-container {
+            width: 100%;
+            position: relative;
+            border-top: 3px solid #990000;
+            border-bottom: 3px solid #990000;
+        }
+
+        #map {
+            width: 100%;
+            height: 60vh; /* 画面高さの60% */
+            background-color: #f4edd2;
+        }
+
+        /* Leafletの地図をインド風（セピア・ゴールデン）に染めるCSSフィルター */
+        .leaflet-tile-container {
+            filter: sepia(0.4) hue-rotate(15deg) saturate(1.2) contrast(0.95);
+        }
+
+        .custom-flag-marker {
+            width: 30px;
+            height: 30px;
+            /* インドの国旗3色（サフラン、白、緑）の直線グラデーション */
+            background: linear-gradient(135deg, #FF9933 0%, #FF9933 33.33%, #FFFFFF 33.33%, #FFFFFF 66.66%, #128807 66.66%, #128807 100%);
+            /* 標準的なピンの形状（雫型） */
+            border-radius: 50% 50% 50% 0;
+            /* 斜めにして先端を下に向ける */
+            transform: rotate(-45deg);
+            margin-left: -15px;
+            margin-top: -30px;
+            border: 1px solid #4a2c11;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .custom-flag-marker::after {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background-color: #000080;
+            border-radius: 50%;
+            /* 親要素が45度回転しているため、中心点への影響を考慮した配置 */
+            transform: translate(1px, -1px);
+        }
+
+        /* --- インドカレー風 ポップアップのCSSカスタム --- */
+        .leaflet-popup-content-wrapper {
+            background-color: #fdf6e2;
+            color: #4a2c11;
+            border: 2px double #e65c00;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+            font-weight: bold;
+            font-size: 1rem;
+            padding: 4px;
+        }
+
+        .leaflet-popup-tip {
+            background-color: #fdf6e2;
+            border-left: 1px solid #e65c00;
+            border-bottom: 1px solid #e65c00;
+        }
+
+        .leaflet-popup-close-button {
+            color: #990000 !important;
+        }
+
+        /* --- カレー画面（豆知識ページ） --- */
+        #curry-page {
+            padding: 40px 20px;
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .info-box {
+            background-color: #ffffff;
+            border: 2px dashed #e65c00;
+            border-radius: 10px;
+            padding: 30px 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        /* --- フッター --- */
+        footer {
+            background-color: #2b1704;
+            color: #fdf6e2;
+            text-align: center;
+            padding: 20px 10px;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            border-top: 3px solid #e65c00;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <nav>
+            <ul>
+                <li><a id="btn-home" class="active" onclick="switchPage('home')">ホーム</a></li>
+                <li><a id="btn-curry" onclick="switchPage('curry')">カレー</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="home-page" class="page active">
+            <h1>インドカレーマップ</h1>
+            <div class="map-container">
+                <div id="map"></div>
+            </div>
+        </section>
+
+        <section id="curry-page" class="page">
+            <div class="info-box">
+                ここにインドカレーの豆知識を更新していきます。
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>©︎インドカレーの魔神 All rights reserved.</p>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <script>
+        const markerTargetLatLng = [35.71018090184362, 139.72027379814747];
+        const map = L.map('map').setView(markerTargetLatLng, 18);
+
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+
+        // --- インド国旗スタイルのカスタムアイコン設定 ---
+        const flagIcon = L.divIcon({
+            className: 'custom-flag-marker',
+            iconSize: [30, 30],
+            iconAnchor: [0, 0],
+            popupAnchor: [0, -30]
+        });
+
+
+        L.marker(markerTargetLatLng, { icon: flagIcon })
+            .addTo(map)
+            .bindPopup('Sizzle Asian Dining<br>その奥深さに唸るらしい');
+
+
+        function switchPage(pageName) {
+            document.getElementById('home-page').classList.remove('active');
+            document.getElementById('curry-page').classList.remove('active');
+            document.getElementById('btn-home').classList.remove('active');
+            document.getElementById('btn-curry').classList.remove('active');
+
+            if (pageName === 'home') {
+                document.getElementById('home-page').classList.add('active');
+                document.getElementById('btn-home').classList.add('active');
+                
+                setTimeout(() => {
+                    map.invalidateSize();
+                }, 10);
+            } else if (pageName === 'curry') {
+                document.getElementById('curry-page').classList.add('active');
+                document.getElementById('btn-curry').classList.add('active');
+            }
+        }
+    </script>
+</body>
+</html>
